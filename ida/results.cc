@@ -1196,12 +1196,12 @@ absl::StatusOr<std::string> Results::PrepareVisualDiff(size_t index) {
   FlowGraphs flow_graphs1;
   FlowGraphs flow_graphs2;
   FixedPoints fixed_points;
+  std::unique_ptr<FlowGraph> primary;
+  std::unique_ptr<FlowGraph> secondary;
   if (is_incomplete()) {
     LOG(INFO) << "Loading incomplete flow graphs";
     // Results have been loaded: we need to reload flow graphs and recreate
     // basic block fixed_points.
-    std::unique_ptr<FlowGraph> primary;
-    std::unique_ptr<FlowGraph> secondary;
     ABSL_RETURN_IF_ERROR(SetupTemporaryFlowGraphs(
         fixed_point_info, fixed_point, primary, secondary,
         /*create_instruction_matches=*/false));
@@ -1219,7 +1219,7 @@ absl::StatusOr<std::string> Results::PrepareVisualDiff(size_t index) {
   ABSL_ASSIGN_OR_RETURN(auto database_writer,
                         DatabaseWriter::Create(name, true));
   ABSL_RETURN_IF_ERROR(database_writer->Write(
-      call_graph1_, call_graph2_, flow_graphs1_, flow_graphs2_, fixed_points_));
+      call_graph1_, call_graph2_, flow_graphs1, flow_graphs2, fixed_points));
   const std::string& database_file = database_writer->filename();
 
   std::string message = VisualDiffMessage(
