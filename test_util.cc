@@ -32,6 +32,7 @@
 #include "third_party/zynamics/bindiff/match/call_graph.h"
 #include "third_party/zynamics/bindiff/match/flow_graph.h"
 #include "third_party/zynamics/bindiff/prime_signature.h"
+#include "third_party/zynamics/binexport/util/types.h"
 
 namespace security::bindiff {
 
@@ -138,6 +139,15 @@ std::unique_ptr<FlowGraph> FunctionBuilder::Build(CallGraph& call_graph,
     return nullptr;
   }
   FlowGraphPeer flow_graph_peer(*flow_graph);
+  flow_graph_peer.set_byte_hash(byte_hash_);
+  flow_graph_peer.set_string_references(string_references_);
+
+  absl::flat_hash_map<std::string, Address> function_addresses;
+  for (auto [it, end] = boost::vertices(call_graph.GetGraph()); it != end;
+       ++it) {
+    function_addresses[call_graph.GetGraph()[*it].name_] =
+        call_graph.GetGraph()[*it].address_;
+  }
 
   std::vector<std::pair<Graph::edges_size_type, Graph::edges_size_type>> edges;
   std::vector<EdgeInfo> properties;
@@ -147,6 +157,9 @@ std::unique_ptr<FlowGraph> FunctionBuilder::Build(CallGraph& call_graph,
   for (const auto& basic_block : basic_blocks_) {
     VertexInfo* vertex = &vertices.emplace_back();
     vertex->instruction_start_ = instruction_offset;
+    vertex->call_target_start_ = flow_graph_peer.call_targets().size();
+    vertex->basic_block_hash_ = basic_block.basic_block_hash_;
+    vertex->string_hash_ = basic_block.string_hash_;
     vertex->prime_ = 0;
     labels[basic_block.label_] = label_id++;
     for (auto& instruction : basic_block.instructions_) {
@@ -155,6 +168,12 @@ std::unique_ptr<FlowGraph> FunctionBuilder::Build(CallGraph& call_graph,
                                                   instruction.mnemonic_,
                                                   instruction.prime_);
       vertex->prime_ += instruction.prime_;
+      if (!instruction.calls_function_.empty()) {
+        if (auto it = function_addresses.find(instruction.calls_function_);
+            it != function_addresses.end()) {
+          flow_graph_peer.call_targets().push_back(it->second);
+        }
+      }
     }
   }
 
@@ -230,14 +249,17 @@ std::unique_ptr<DiffBinary> DiffBinaryBuilder::Build(
     auto& vertex = graph[*it];
     vertex.address_ = func_it->entry_point_;
     vertex.name_ = std::move(func_it->name_);
+    if (func_it->real_name_) {
+      vertex.flags_ |= CallGraph::VERTEX_NAME;
+    }
   }
-  CallGraphPeer call_graph_peer(diff_binary->call_graph);
-  call_graph_peer.Init();
 
   for (auto& function : functions_) {
     diff_binary->flow_graphs.insert(
         function.Build(diff_binary->call_graph, cache).release());
   }
+  CallGraphPeer call_graph_peer(diff_binary->call_graph);
+  call_graph_peer.Init();
   return diff_binary;
 }
 

@@ -296,7 +296,6 @@ if(BUILD_TESTING AND BINDIFF_BUILD_TESTING)
   )
   gtest_discover_tests(call_graph_test)
 
-
   add_executable(change_classifier_test change_classifier_test.cc)
   target_link_libraries(change_classifier_test
     bindiff_test_base
@@ -304,6 +303,16 @@ if(BUILD_TESTING AND BINDIFF_BUILD_TESTING)
     bindiff_shared
   )
   gtest_discover_tests(change_classifier_test)
+
+  add_executable(config_test config_and_colors_test.cc)
+  target_link_libraries(config_test
+    absl::status_matchers
+    bindiff_test_base
+    bindiff_test_util
+    bindiff_shared
+    binexport_testing
+  )
+  gtest_discover_tests(config_test)
 
   add_executable(database_writer_test database_writer_test.cc)
   target_link_libraries(database_writer_test
@@ -313,7 +322,11 @@ if(BUILD_TESTING AND BINDIFF_BUILD_TESTING)
   )
   gtest_discover_tests(database_writer_test)
 
-  add_executable(match_tests match/basic_block_instruction_count_test.cc)
+  add_executable(match_tests
+    match/basic_block_algorithms_test.cc
+    match/basic_block_instruction_count_test.cc
+    match/function_algorithms_test.cc
+  )
   target_link_libraries(match_tests
     bindiff_test_base
     bindiff_test_util

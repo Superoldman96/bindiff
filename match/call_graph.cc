@@ -232,6 +232,7 @@ bool FindCallReferenceFixedPoints(FixedPoint* fixed_point,
             FindFixedPointsBasicBlock(&fixed_point, context, default_steps);
             FindCallReferenceFixedPoints(&fixed_point, context, default_steps);
             UpdateFixedPointConfidence(fixed_point);
+            fixed_points_discovered = true;
           }
         }
       }

@@ -14,16 +14,24 @@
 
 #include "third_party/zynamics/bindiff/writer.h"
 
+#include <fstream>
 #include <memory>
+#include <sstream>
+#include <string>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "third_party/absl/memory/memory.h"
 #include "third_party/absl/status/status.h"
 #include "third_party/absl/status/status_matchers.h"
+#include "third_party/absl/strings/str_cat.h"
 #include "third_party/zynamics/bindiff/call_graph.h"
 #include "third_party/zynamics/bindiff/fixed_points.h"
 #include "third_party/zynamics/bindiff/flow_graph.h"
+#include "third_party/zynamics/bindiff/groundtruth_writer.h"
+#include "third_party/zynamics/bindiff/instruction.h"
+#include "third_party/zynamics/bindiff/reader.h"
+#include "third_party/zynamics/bindiff/test_util.h"
 
 namespace security::bindiff {
 namespace {
@@ -80,6 +88,72 @@ TEST_F(WriterTest, CanChainWriters) {
                           flow_graphs2_, fixed_points_),
               IsOk());
   EXPECT_THAT(count, Eq(3));
+}
+
+TEST_F(WriterTest, GroundtruthWriterWritesFixedPoints) {
+  Instruction::Cache cache;
+  auto primary =
+      DiffBinaryBuilder()
+          .AddFunctions(
+              {FunctionBuilder(0x10000, "func_a")
+                   .AddBasicBlocks({BasicBlockBuilder("entry").AddInstructions({
+                       InstructionBuilder("ret"),
+                   })})})
+          .Build(cache);
+  auto secondary =
+      DiffBinaryBuilder()
+          .AddFunctions(
+              {FunctionBuilder(0x20000, "func_b")
+                   .AddBasicBlocks({BasicBlockBuilder("entry").AddInstructions({
+                       InstructionBuilder("ret"),
+                   })})})
+          .Build(cache);
+
+  FixedPoints fixed_points;
+  fixed_points.insert(FixedPoint(*primary->flow_graphs.begin(),
+                                 *secondary->flow_graphs.begin(), "manual"));
+
+  const std::string filename =
+      absl::StrCat(::testing::TempDir(), "/groundtruth_fixed_points.txt");
+  GroundtruthWriter writer(filename);
+  EXPECT_THAT(
+      writer.Write(primary->call_graph, secondary->call_graph,
+                   primary->flow_graphs, secondary->flow_graphs, fixed_points),
+      IsOk());
+
+  std::ifstream in_file(filename);
+  std::stringstream buffer;
+  buffer << in_file.rdbuf();
+  EXPECT_THAT(buffer.str(), Eq("00010000 00020000 func_a func_b\n"));
+}
+
+TEST_F(WriterTest, GroundtruthWriterWritesFixedPointInfos) {
+  FixedPointInfos fixed_point_infos;
+  FixedPointInfo info;
+  info.primary = 0x10000;
+  info.secondary = 0x20000;
+  fixed_point_infos.insert(info);
+
+  std::string name_a = "loaded_func_a";
+  std::string name_b = "loaded_func_b";
+  FlowGraphInfos primary_infos;
+  primary_infos[0x10000].name = &name_a;
+  FlowGraphInfos secondary_infos;
+  secondary_infos[0x20000].name = &name_b;
+
+  const std::string filename =
+      absl::StrCat(::testing::TempDir(), "/groundtruth_infos.txt");
+  GroundtruthWriter writer(filename, fixed_point_infos, primary_infos,
+                           secondary_infos);
+  EXPECT_THAT(writer.Write(call_graph1_, call_graph2_, flow_graphs1_,
+                           flow_graphs2_, fixed_points_),
+              IsOk());
+
+  std::ifstream in_file(filename);
+  std::stringstream buffer;
+  buffer << in_file.rdbuf();
+  EXPECT_THAT(buffer.str(),
+              Eq("00010000 00020000 loaded_func_a loaded_func_b\n"));
 }
 
 }  // namespace

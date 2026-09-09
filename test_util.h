@@ -63,6 +63,11 @@ struct FlowGraphPeer {
   void Init() { flow_graph.Init(); }
 
   Instructions& instructions() { return flow_graph.instructions_; }
+  FlowGraph::CallTargets& call_targets() { return flow_graph.call_targets_; }
+  void set_byte_hash(uint32_t hash) { flow_graph.byte_hash_ = hash; }
+  void set_string_references(uint32_t hash) {
+    flow_graph.string_references_ = hash;
+  }
 
   FlowGraph& flow_graph;
 };
@@ -113,12 +118,24 @@ class BasicBlockBuilder {
     return *this;
   }
 
+  BasicBlockBuilder& SetBasicBlockHash(uint32_t hash) {
+    basic_block_hash_ = hash;
+    return *this;
+  }
+
+  BasicBlockBuilder& SetStringReferences(uint32_t hash) {
+    string_hash_ = hash;
+    return *this;
+  }
+
  private:
   friend class FunctionBuilder;
 
   std::string label_;
   absl::btree_map<int, std::string> out_flow_labels_;
   std::vector<InstructionBuilder> instructions_;
+  uint32_t basic_block_hash_ = 0;
+  uint32_t string_hash_ = 0;
 };
 
 class FunctionBuilder {
@@ -136,6 +153,21 @@ class FunctionBuilder {
     return *this;
   }
 
+  FunctionBuilder& SetHash(uint32_t byte_hash) {
+    byte_hash_ = byte_hash;
+    return *this;
+  }
+
+  FunctionBuilder& SetStringReferences(uint32_t string_references) {
+    string_references_ = string_references;
+    return *this;
+  }
+
+  FunctionBuilder& SetRealName(bool real_name = true) {
+    real_name_ = real_name;
+    return *this;
+  }
+
   std::unique_ptr<FlowGraph> Build(CallGraph& call_graph,
                                    Instruction::Cache& cache);
 
@@ -148,6 +180,9 @@ class FunctionBuilder {
   std::string name_;
   std::vector<BasicBlockBuilder> basic_blocks_;
   std::vector<absl::string_view> out_calls_;
+  uint32_t byte_hash_ = 1;
+  uint32_t string_references_ = 1;
+  bool real_name_ = false;
 };
 
 // Holder struct for one side of a diff.
