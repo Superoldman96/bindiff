@@ -18,10 +18,8 @@
 #include <atomic>
 #include <cassert>
 #include <csignal>
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <exception>
 #include <fstream>
 #include <functional>
 #include <iomanip>
@@ -35,15 +33,13 @@
 #include <vector>
 
 #include "third_party/absl/base/const_init.h"
-#include "third_party/absl/flags/flag.h"
-#include "third_party/absl/flags/internal/usage.h"
 #include "third_party/absl/base/log_severity.h"
+#include "third_party/absl/flags/flag.h"
 #include "third_party/absl/flags/parse.h"
 #include "third_party/absl/flags/usage.h"
 #include "third_party/absl/flags/usage_config.h"
 #include "third_party/absl/log/globals.h"
 #include "third_party/absl/log/initialize.h"
-#include "third_party/absl/memory/memory.h"
 #include "third_party/absl/status/status.h"
 #include "third_party/absl/status/status_macros.h"
 #include "third_party/absl/status/statusor.h"
